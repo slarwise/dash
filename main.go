@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 
@@ -58,12 +59,16 @@ type UpResult struct {
 }
 
 func main() {
-	var config Config
-	contents, err := os.ReadFile("./config.yaml")
+	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		fatal(fmt.Sprintf("Could not read ./config.yaml: %s\n", err.Error()))
+		fatal("Could not find user's home directory for reading config file: %s", err.Error())
 	}
-	yaml.Unmarshal(contents, &config)
+	configFile, err := os.ReadFile(path.Join(homeDir, ".config", "dash", "config.yaml"))
+	if err != nil {
+		fatal("Could not read config file: %s", err.Error())
+	}
+	var config Config
+	yaml.Unmarshal(configFile, &config)
 	var totalVsErrorsResults []TotalVsErrorsResult
 	for _, app := range config.TotalVsErrors {
 		totalRate, err := metricQuery(config.PrometheusServer, app.TotalQuery)
@@ -120,8 +125,11 @@ func main() {
 	fmt.Println(strings.Join(lines, "\n"))
 }
 
-func fatal(message string) {
-	fmt.Fprintf(os.Stderr, "%s\n", message)
+func fatal(format string, a ...string) {
+	if !strings.HasSuffix(format, "\n") {
+		format = format + "\n"
+	}
+	fmt.Fprintf(os.Stderr, format, a)
 	os.Exit(1)
 }
 
